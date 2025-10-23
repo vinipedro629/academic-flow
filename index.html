@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Academic Flow | Gerenciador de Estudos</title>
+    <meta name="description" content="Sistema profissional de gerenciamento de tarefas e prazos acadêmicos (Provas, Trabalhos, Avaliações). Desenvolvido com HTML, CSS e JavaScript puro.">
+
+    <link rel="stylesheet" href="css/style.css">
+    </head>
+<body>
+    <header class="main-header">
+        <div class="logo">
+            <span aria-label="Ícone de livro">📚</span>
+            <h1>Academic Flow</h1>
+        </div>
+        <nav aria-label="Navegação da Aplicação">
+            <button id="theme-toggle" aria-label="Alternar entre tema claro e escuro" class="btn-theme-toggle">
+                <span class="icon-sun">☀️</span>
+            </button>
+        </nav>
+    </header>
+
+    <main class="container">
+        
+        <section class="card form-section" aria-labelledby="form-title">
+            <h2 id="form-title">Agendar Tarefa Acadêmica</h2>
+            <form id="task-form" class="task-form">
+                
+                <div class="form-group">
+                    <label for="task-type">Tipo de Evento</label>
+                    <select id="task-type" required aria-required="true">
+                        <option value="">Selecione o Tipo</option>
+                        <option value="Prova">Prova</option>
+                        <option value="Trabalho">Trabalho</option>
+                        <option value="Avaliacao">Avaliação de Questões</option>
+                        <option value="Prazo Final">Prazo Final (Geral)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="task-title">Descrição/Matéria</label>
+                    <input type="text" id="task-title" required placeholder="Ex: Cálculo 1 - Derivadas" aria-required="true">
+                </div>
+                
+                <div class="form-group">
+                    <label for="task-date">Data e Hora Limite</label>
+                    <input type="datetime-local" id="task-date" required aria-required="true">
+                </div>
+
+                <div class="form-group">
+                    <label for="task-notes">Notas (Opcional)</label>
+                    <textarea id="task-notes" placeholder="Revisar capítulos X e Y..."></textarea>
+                </div>
+
+                <input type="hidden" id="task-id">
+                
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary" id="submit-button">
+                        Agendar Tarefa
+                    </button>
+                    <button type="button" class="btn btn-secondary" id="cancel-edit" style="display:none;">
+                        Cancelar Edição
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        <section class="card list-section" aria-labelledby="list-title">
+            <h2 id="list-title">Próximos Prazos (<span id="task-count">0</span>)</h2>
+            
+            <div class="list-controls">
+                <input type="text" id="search-input" placeholder="Buscar por matéria..." aria-label="Campo de busca de tarefas">
+                <select id="filter-type" aria-label="Filtro por tipo de evento">
+                    <option value="all">Todos os Tipos</option>
+                    <option value="Prova">Prova</option>
+                    <option value="Trabalho">Trabalho</option>
+                    <option value="Avaliacao">Avaliação</option>
+                    <option value="Prazo Final">Prazo Final</option>
+                </select>
+            </div>
+
+            <ul id="task-list" class="task-list" role="list">
+                <li class="empty-state" id="empty-state" aria-live="polite" style="display:none;">Nenhuma tarefa agendada. Adicione uma nova!</li>
+            </ul>
+        </section>
+    </main>
+
+    <footer class="main-footer">
+        <p>&copy; <span id="current-year"></span> Academic Flow. Planejador Acadêmico com Vanilla JS.</p>
+    </footer>
+
+    <script src="js/script.js" defer></script>
+</body>
+</html>
