@@ -1,6 +1,6 @@
 /*
- * script.js - Academic Flow
- * Lógica: Manipulação de Datas, CRUD, LocalStorage, Tema.
+ * script.js - Academic Flow (Versão Completa e Avançada)
+ * Lógica: IndexedDB (Persistência Assíncrona), CRUD, Canvas (Gráfico), Notificações.
  */
 
 // 1. Variáveis Globais do DOM
@@ -13,33 +13,104 @@ const submitButton = document.getElementById('submit-button');
 const cancelButton = document.getElementById('cancel-edit');
 const searchInput = document.getElementById('search-input');
 const filterType = document.getElementById('filter-type');
+const notifyButton = document.getElementById('notify-button');
+
+// Variáveis de Gráfico
+const taskChartCanvas = document.getElementById('task-chart');
+// Certifica-se de que o contexto 2D existe antes de usar o Canvas
+const ctx = taskChartCanvas ? taskChartCanvas.getContext('2d') : null; 
 
 // Variáveis de Estado
 let editingTaskId = null;
-let tasks = []; // Array principal de tarefas
+let tasks = [];
 
-// 2. Persistência de Dados (Local Storage)
+// 2. Persistência Assíncrona (IndexedDB)
+const DB_NAME = 'AcademicFlowDB';
+const STORE_NAME = 'tasks';
+let db;
+
+/**
+ * Abre a conexão com o IndexedDB e cria a Store.
+ */
+const openDB = () => {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, 1);
+
+        request.onupgradeneeded = (e) => {
+            const dbInstance = e.target.result;
+            if (!dbInstance.objectStoreNames.contains(STORE_NAME)) {
+                dbInstance.createObjectStore(STORE_NAME, { keyPath: 'id' }); 
+            }
+        };
+
+        request.onsuccess = (e) => {
+            db = e.target.result;
+            resolve(db);
+        };
+
+        request.onerror = (e) => {
+            console.error("IndexedDB error:", e.target.error);
+            reject(e.target.error);
+        };
+    });
+};
+
+/**
+ * Carrega todas as tarefas do IndexedDB.
+ */
 const loadTasks = () => {
-    try {
-        const tasksJson = localStorage.getItem('academic_tasks');
-        // Ao carregar, converte a string de data de volta para um objeto Date, se necessário
-        const loadedTasks = tasksJson ? JSON.parse(tasksJson) : [];
-        return loadedTasks;
-    } catch (e) {
-        console.error("Erro ao carregar tarefas do localStorage:", e);
-        return [];
-    }
+    return new Promise((resolve, reject) => {
+        if (!db) { 
+            tasks = [];
+            return resolve([]); // Retorna lista vazia se o DB não está pronto
+        }
+        const transaction = db.transaction([STORE_NAME], 'readonly');
+        const store = transaction.objectStore(STORE_NAME);
+        const request = store.getAll();
+
+        request.onsuccess = (e) => {
+            tasks = e.target.result;
+            resolve(tasks);
+        };
+
+        request.onerror = (e) => {
+            console.error("Erro ao carregar do IndexedDB:", e.target.error);
+            reject(e.target.error);
+        };
+    });
 };
 
-const saveTasks = (tasksToSave) => {
-    try {
-        localStorage.setItem('academic_tasks', JSON.stringify(tasksToSave));
-    } catch (e) {
-        console.error("Erro ao salvar tarefas no localStorage:", e);
-    }
+/**
+ * Adiciona ou atualiza uma tarefa no IndexedDB.
+ */
+const saveTaskToDB = (task) => {
+    return new Promise((resolve, reject) => {
+        if (!db) return resolve();
+        const transaction = db.transaction([STORE_NAME], 'readwrite');
+        const store = transaction.objectStore(STORE_NAME);
+        const request = store.put(task); 
+
+        request.onsuccess = resolve;
+        request.onerror = reject;
+    });
 };
 
-// 3. Gerenciamento de Tema (Idêntico ao projeto anterior, mantendo a qualidade)
+/**
+ * Remove uma tarefa do IndexedDB.
+ */
+const deleteTaskFromDB = (id) => {
+    return new Promise((resolve, reject) => {
+        if (!db) return resolve();
+        const transaction = db.transaction([STORE_NAME], 'readwrite');
+        const store = transaction.objectStore(STORE_NAME);
+        const request = store.delete(id);
+
+        request.onsuccess = resolve;
+        request.onerror = reject;
+    });
+};
+
+// 3. Gerenciamento de Tema (Boas Práticas e Acessibilidade)
 const loadThemePreference = () => {
     const savedTheme = localStorage.getItem('theme');
     const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -63,13 +134,48 @@ const toggleTheme = () => {
     setTheme(newTheme);
 };
 
-// 4. Funções Auxiliares de Data e Formato (DADO DINÂMICO)
+// 4. Módulo de Notificações (PWA Básico)
+const requestNotificationPermission = () => {
+    if (!("Notification" in window)) {
+        alert("Este navegador não suporta notificações de desktop.");
+        return;
+    }
 
-/**
- * Calcula os dias, horas e minutos restantes até um prazo.
- * @param {string} deadline - Data/hora do prazo no formato ISO.
- * @returns {Object} { days: number, hours: number, minutes: number, expired: boolean }
- */
+    if (Notification.permission === "granted") {
+        notifyButton.textContent = "🔔 Permissão Concedida";
+        notifyButton.disabled = true;
+        return;
+    }
+
+    Notification.requestPermission().then((permission) => {
+        if (permission === "granted") {
+            new Notification("Notificações Ativadas!", { body: "Você será avisado sobre prazos importantes." });
+            notifyButton.textContent = "🔔 Permissão Concedida";
+            notifyButton.disabled = true;
+        } else {
+            notifyButton.textContent = "🔔 Permissão Negada";
+        }
+    });
+};
+
+const sendUrgentNotifications = () => {
+    if (Notification.permission !== "granted") return;
+
+    tasks.forEach(task => {
+        const timeLeft = calculateTimeLeft(task.date);
+        
+        // Alerta se faltar entre 1 e 60 minutos
+        if (!timeLeft.expired && timeLeft.days === 0 && timeLeft.hours === 0 && timeLeft.minutes <= 60 && timeLeft.minutes > 0) {
+             new Notification("🚨 PRAZO URGENTE! (" + task.type + ")", {
+                body: `${task.title} expira em ${timeLeft.minutes} minutos.`,
+                icon: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-size='20' fill='%23dc3545'>❗</text></svg>",
+                tag: `task-${task.id}`
+            });
+        }
+    });
+};
+
+// 5. Funções Auxiliares de Data e Formato
 const calculateTimeLeft = (deadline) => {
     const now = new Date().getTime();
     const target = new Date(deadline).getTime();
@@ -86,13 +192,7 @@ const calculateTimeLeft = (deadline) => {
     return { days, hours, minutes, expired: false };
 };
 
-/**
- * Formata a data para exibição na lista.
- * @param {string} deadline - Data/hora do prazo no formato ISO.
- * @returns {string} Data formatada.
- */
 const formatDate = (deadline) => {
-    // Acessibilidade: Usa o formato local do usuário.
     const date = new Date(deadline);
     return date.toLocaleDateString('pt-BR', {
         day: '2-digit',
@@ -103,16 +203,101 @@ const formatDate = (deadline) => {
     });
 };
 
-// 5. Manipulação Dinâmica do DOM (Renderização)
+// 6. Módulo de Visualização (Gráfico Canvas)
+const drawTaskChart = () => {
+    if (!ctx) return;
+    
+    const counts = { Prova: 0, Trabalho: 0, Avaliacao: 0, 'Prazo Final': 0, Total: tasks.length };
+    tasks.forEach(task => { if (counts.hasOwnProperty(task.type)) counts[task.type]++; });
 
-/**
- * Cria um elemento HTML (li) para uma tarefa.
- * @param {Object} task - O objeto tarefa.
- * @returns {HTMLLIElement} O elemento <li> da tarefa.
- */
+    const style = getComputedStyle(document.documentElement);
+    const colors = [
+        style.getPropertyValue('--color-prova').trim(),
+        style.getPropertyValue('--color-trabalho').trim(),
+        style.getPropertyValue('--color-avaliacao').trim(),
+        style.getPropertyValue('--color-prazo').trim(),
+    ];
+    
+    const types = ['Prova', 'Trabalho', 'Avaliacao', 'Prazo Final'];
+    const data = types.map(t => counts[t]);
+    
+    const width = taskChartCanvas.width;
+    const height = taskChartCanvas.height;
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const radius = Math.min(width, height) / 2.5;
+    const innerRadius = radius * 0.6; 
+
+    ctx.clearRect(0, 0, width, height);
+    
+    let currentAngle = 0;
+    
+    // Desenha as fatias
+    data.forEach((value, index) => {
+        if (value === 0) return;
+        
+        const sliceAngle = (value / counts.Total) * 2 * Math.PI;
+        
+        ctx.fillStyle = colors[index];
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius, currentAngle, currentAngle + sliceAngle);
+        ctx.lineTo(centerX, centerY);
+        ctx.fill();
+        
+        // Desenha porcentagens (Melhoria de UX)
+        const midAngle = currentAngle + sliceAngle / 2;
+        const labelX = centerX + radius * 0.8 * Math.cos(midAngle);
+        const labelY = centerY + radius * 0.8 * Math.sin(midAngle);
+
+        ctx.fillStyle = 'white';
+        ctx.font = '10px Arial';
+        ctx.textAlign = 'center';
+        
+        if ((value / counts.Total) > 0.05) { 
+            const percentage = ((value / counts.Total) * 100).toFixed(0);
+            ctx.fillText(`${percentage}%`, labelX, labelY);
+        }
+
+        currentAngle += sliceAngle;
+    });
+
+    // Desenha o círculo central (buraco)
+    ctx.fillStyle = style.getPropertyValue('--color-surface').trim();
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, innerRadius, 0, 2 * Math.PI);
+    ctx.fill();
+    
+    // Desenha a legenda do lado de fora
+    drawChartLegend(ctx, width, height, types, data, colors, counts.Total);
+};
+
+const drawChartLegend = (ctx, width, height, types, data, colors, total) => {
+    const style = getComputedStyle(document.documentElement);
+    const legendX = 10;
+    let legendY = 10; // Posição inicial da legenda no topo
+
+    types.forEach((type, index) => {
+        const value = data[index];
+        if (total !== 0 && value === 0) return; 
+
+        ctx.fillStyle = colors[index];
+        ctx.fillRect(legendX, legendY, 10, 10); 
+
+        ctx.fillStyle = style.getPropertyValue('--color-text').trim();
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'left';
+        
+        const percentage = total === 0 ? 0 : ((value / total) * 100).toFixed(1);
+        ctx.fillText(`${type}: ${value} (${percentage}%)`, legendX + 15, legendY + 9);
+        
+        legendY += 20;
+    });
+};
+
+// 7. Manipulação Dinâmica do DOM e Funções CRUD
 const createTaskElement = (task) => {
+    // ... Código para criar o LI (mesmo da versão anterior) ...
     const li = document.createElement('li');
-    // Adiciona classe base e a classe de cor específica
     li.className = `task-item type-${task.type.replace(/\s/g, '')}`; 
     li.setAttribute('data-id', task.id);
     li.setAttribute('role', 'listitem');
@@ -121,8 +306,10 @@ const createTaskElement = (task) => {
     const timeLeft = calculateTimeLeft(task.date);
     
     let deadlineText;
+    const dangerColor = getComputedStyle(document.documentElement).getPropertyValue('--color-danger').trim();
+    
     if (timeLeft.expired) {
-        deadlineText = `<span class="days-left" style="color: ${getComputedStyle(document.documentElement).getPropertyValue('--color-danger')}">EXPIRADO</span>`;
+        deadlineText = `<span class="days-left" style="color: ${dangerColor}">EXPIRADO</span>`;
     } else if (timeLeft.days > 0) {
         deadlineText = `<span class="days-left">${timeLeft.days}</span> dias`;
     } else if (timeLeft.hours > 0) {
@@ -137,7 +324,7 @@ const createTaskElement = (task) => {
             <p class="task-type" aria-label="Tipo de evento">${task.type}</p>
             <h3>${task.title}</h3>
             <p>Prazo: ${formatDate(task.date)}</p>
-            ${task.notes ? `<p class="notes-preview">Notas: ${task.notes.substring(0, 50)}...</p>` : ''}
+            ${task.notes ? `<p class="notes-preview" title="${task.notes}">Notas: ${task.notes.substring(0, 50)}...</p>` : ''}
         </div>
         <div class="task-deadline">
             ${deadlineText}
@@ -153,140 +340,94 @@ const createTaskElement = (task) => {
         </div>
     `;
 
-    // Adiciona ouvintes de eventos
     li.querySelector('.edit-btn').addEventListener('click', () => startEdit(task.id));
-    // O botão delete/concluído remove a tarefa
     li.querySelector('.delete-btn').addEventListener('click', () => deleteTask(task.id));
 
     return li;
 };
 
-/**
- * Renderiza a lista de tarefas no DOM.
- */
-const renderTasks = () => {
-    taskList.innerHTML = ''; // Limpa a lista atual
+const renderTasks = async () => {
+    await loadTasks(); 
+    taskList.innerHTML = '';
 
     const searchTerm = searchInput.value.toLowerCase();
     const filterValue = filterType.value;
 
-    // 1. Aplica Filtros e Busca
     let filteredTasks = tasks.filter(task => {
         const matchesSearch = task.title.toLowerCase().includes(searchTerm) || task.notes.toLowerCase().includes(searchTerm);
         const matchesFilter = filterValue === 'all' || task.type === filterValue;
         return matchesSearch && matchesFilter;
     });
 
-    // 2. Ordena por prazo: tarefas mais próximas (ou expiradas) primeiro
     filteredTasks.sort((a, b) => new Date(a.date) - new Date(b.date));
-
 
     if (filteredTasks.length === 0) {
         emptyState.style.display = 'block';
     } else {
         emptyState.style.display = 'none';
-        
         filteredTasks.forEach(task => {
             taskList.appendChild(createTaskElement(task));
         });
     }
 
-    // 3. Atualiza a contagem
     taskCountSpan.textContent = filteredTasks.length;
+    drawTaskChart(); 
 };
 
-// 6. Funções CRUD
-
-/**
- * Lida com o envio do formulário (Adicionar ou Atualizar).
- */
-const handleFormSubmit = (e) => {
+const handleFormSubmit = async (e) => {
     e.preventDefault();
 
-    // Cria um objeto task a partir dos dados do formulário
     const taskData = {
         type: document.getElementById('task-type').value,
         title: document.getElementById('task-title').value.trim(),
-        date: document.getElementById('task-date').value, // Formato ISO para persistência
+        date: document.getElementById('task-date').value,
         notes: document.getElementById('task-notes').value.trim(),
     };
 
     if (editingTaskId) {
-        // Modo Edição
-        updateTask(editingTaskId, taskData);
+        const taskIndex = tasks.findIndex(t => t.id === editingTaskId);
+        if (taskIndex !== -1) {
+             const updatedTask = { ...tasks[taskIndex], ...taskData, id: editingTaskId };
+             await saveTaskToDB(updatedTask);
+        }
     } else {
-        // Modo Criação
-        addTask(taskData);
+        const newTask = { id: Date.now(), ...taskData };
+        await saveTaskToDB(newTask);
     }
 
     resetForm();
-    renderTasks();
+    await renderTasks();
 };
 
-/**
- * Adiciona uma nova tarefa.
- */
-const addTask = (taskData) => {
-    const newTask = {
-        id: Date.now(), // ID simples e único
-        ...taskData,
-    };
-    tasks.push(newTask);
-    saveTasks(tasks);
-};
-
-/**
- * Inicia o modo de edição, preenchendo o formulário.
- */
 const startEdit = (id) => {
     const taskToEdit = tasks.find(t => t.id === id);
 
     if (taskToEdit) {
-        // Preenche o formulário
         document.getElementById('task-type').value = taskToEdit.type;
         document.getElementById('task-title').value = taskToEdit.title;
-        // O campo datetime-local espera a string ISO (YYYY-MM-DDTHH:MM)
         document.getElementById('task-date').value = taskToEdit.date; 
         document.getElementById('task-notes').value = taskToEdit.notes;
 
-        // Atualiza variáveis e botão
         editingTaskId = id;
         submitButton.textContent = 'Salvar Alterações';
         submitButton.classList.remove('btn-primary');
         submitButton.classList.add('btn-success');
         cancelButton.style.display = 'inline-block';
         
-        // Foca no primeiro campo e rola para o formulário (UX)
         document.getElementById('task-type').focus();
         taskForm.scrollIntoView({ behavior: 'smooth' });
     }
 };
 
-/**
- * Atualiza os dados de uma tarefa existente.
- */
-const updateTask = (id, newTaskData) => {
-    const index = tasks.findIndex(t => t.id === id);
-    if (index !== -1) {
-        tasks[index] = { ...tasks[index], ...newTaskData };
-        saveTasks(tasks);
-    }
-};
-
-/**
- * Deleta/Conclui uma tarefa com animação.
- */
-const deleteTask = (id) => {
+const deleteTask = async (id) => {
     const taskItem = taskList.querySelector(`[data-id="${id}"]`);
 
     if (taskItem) {
-        taskItem.classList.add('fade-out'); // Animação de remoção
+        taskItem.classList.add('fade-out');
 
-        setTimeout(() => {
-            tasks = tasks.filter(t => t.id !== id);
-            saveTasks(tasks);
-            renderTasks();
-
+        setTimeout(async () => {
+            await deleteTaskFromDB(id);
+            await renderTasks();
             if (editingTaskId === id) {
                 resetForm();
             }
@@ -294,9 +435,6 @@ const deleteTask = (id) => {
     }
 };
 
-/**
- * Reseta o formulário e sai do modo de edição.
- */
 const resetForm = () => {
     taskForm.reset();
     editingTaskId = null;
@@ -307,38 +445,43 @@ const resetForm = () => {
 };
 
 
-// 7. Inicialização e Event Listeners
+// 8. Inicialização (Assíncrona para IndexedDB)
 
-/**
- * Inicializa a aplicação.
- */
-const init = () => {
-    // Carrega dados e tema
-    tasks = loadTasks();
+const init = async () => {
+    // 1. Abre o IndexedDB
+    try {
+        await openDB();
+    } catch (e) {
+        console.error("Não foi possível iniciar o IndexedDB. O sistema não salvará dados permanentemente.");
+    }
+
+    // 2. Carregamento e renderização inicial
+    await renderTasks();
     loadThemePreference();
     
-    // Renderiza a lista inicial
-    renderTasks();
-
-    // Event Listener: Envio do Formulário (CRUD)
+    // 3. Event Listeners
     taskForm.addEventListener('submit', handleFormSubmit);
-
-    // Event Listener: Cancelar Edição
     cancelButton.addEventListener('click', resetForm);
-
-    // Event Listener: Alternância de Tema
     themeToggle.addEventListener('click', toggleTheme);
-
-    // Event Listener: Busca e Filtro (Disparam a renderização)
     searchInput.addEventListener('input', renderTasks);
     filterType.addEventListener('change', renderTasks);
     
-    // Atualização de Prazos em Tempo Real (Performance: a cada minuto)
-    setInterval(renderTasks, 60000); // Atualiza a cada 60 segundos
+    notifyButton.addEventListener('click', requestNotificationPermission);
     
-    // Define o ano atual no footer
+    // 4. Atualização em Tempo Real (Prazos, Gráfico e Notificações)
+    setInterval(() => {
+        renderTasks(); // Re-renderiza para atualizar os contadores de tempo
+        sendUrgentNotifications();
+    }, 60000); // Roda a cada 60 segundos
+
     document.getElementById('current-year').textContent = new Date().getFullYear();
+    
+    // Inicializa o estado do botão de notificação
+    if ("Notification" in window && Notification.permission === "granted") {
+        notifyButton.textContent = "🔔 Permissão Concedida";
+        notifyButton.disabled = true;
+    }
 };
 
-// Inicia a aplicação quando o DOM estiver pronto
+// Inicia a aplicação
 document.addEventListener('DOMContentLoaded', init);

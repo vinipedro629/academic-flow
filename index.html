@@ -7,7 +7,7 @@
     <meta name="description" content="Sistema profissional de gerenciamento de tarefas e prazos acadêmicos (Provas, Trabalhos, Avaliações). Desenvolvido com HTML, CSS e JavaScript puro.">
 
     <link rel="stylesheet" href="css/style.css">
-    </head>
+</head>
 <body>
     <header class="main-header">
         <div class="logo">
@@ -67,7 +67,12 @@
         </section>
 
         <section class="card list-section" aria-labelledby="list-title">
-            <h2 id="list-title">Próximos Prazos (<span id="task-count">0</span>)</h2>
+            <h2 id="list-title">Dashboard de Prazos</h2>
+
+            <div class="chart-container">
+                <h3>Distribuição de Tarefas por Tipo</h3>
+                <canvas id="task-chart" width="400" height="200" aria-label="Gráfico de distribuição de tarefas"></canvas>
+            </div>
             
             <div class="list-controls">
                 <input type="text" id="search-input" placeholder="Buscar por matéria..." aria-label="Campo de busca de tarefas">
@@ -78,7 +83,12 @@
                     <option value="Avaliacao">Avaliação</option>
                     <option value="Prazo Final">Prazo Final</option>
                 </select>
+                <button id="notify-button" class="btn btn-info" aria-label="Ativar Notificações do Navegador">
+                    🔔 Notificações
+                </button>
             </div>
+
+            <h3 id="current-tasks-title">Próximos Prazos (<span id="task-count">0</span>)</h3>
 
             <ul id="task-list" class="task-list" role="list">
                 <li class="empty-state" id="empty-state" aria-live="polite" style="display:none;">Nenhuma tarefa agendada. Adicione uma nova!</li>

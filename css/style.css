@@ -11,7 +11,7 @@
     --color-success: #28a745;
     --color-danger: #dc3545;
     --color-warning: #ffc107;
-    --color-info: #007bff;
+    --color-info: #007bff; /* Azul para o botão de Notificação */
     --color-radius: 8px;
     --color-transition: 0.3s ease-in-out;
     --color-spacing: 1.5rem;
@@ -21,6 +21,9 @@
     --color-trabalho: var(--color-warning);  /* Amarelo: Atenção */
     --color-avaliacao: var(--color-info);    /* Azul: Padrão */
     --color-prazo: var(--color-success);     /* Verde: Conclusão/Meta */
+    
+    --color-secondary: #6c757d;
+    --color-secondary-hover: #5a6268;
 }
 
 /* Tema CLARO (Padrão) */
@@ -61,6 +64,9 @@ h2 {
     margin-bottom: 1rem;
     padding-bottom: 0.5rem;
     border-bottom: 2px solid var(--color-border);
+}
+h3 {
+    margin-top: 1rem;
 }
 
 /* 2. Layout Principal */
@@ -114,10 +120,6 @@ h2 {
     transition: box-shadow 0.2s, background-color var(--color-transition);
 }
 
-.card:hover {
-    box-shadow: 0 6px 16px var(--color-shadow);
-}
-
 /* 5. Formulário e Inputs */
 .task-form {
     display: flex;
@@ -149,7 +151,7 @@ select:focus,
 textarea:focus {
     border-color: var(--color-primary);
     outline: none;
-    box-shadow: 0 0 0 3px rgba(138, 43, 226, 0.25); /* Foco acessível */
+    box-shadow: 0 0 0 3px rgba(138, 43, 226, 0.25);
 }
 
 textarea {
@@ -174,25 +176,28 @@ textarea {
     font-size: 1rem;
 }
 
-.btn-primary {
-    background-color: var(--color-primary);
-    color: white; 
-    flex-grow: 1; /* Botão principal ocupa mais espaço */
+.btn-primary { background-color: var(--color-primary); color: white; flex-grow: 1; }
+.btn-primary:hover { background-color: var(--color-primary-hover); transform: translateY(-2px); }
+
+.btn-success { background-color: var(--color-success); color: white; }
+.btn-success:hover { background-color: #1e7e34; transform: translateY(-2px); }
+
+.btn-danger { background-color: var(--color-danger); color: white; }
+.btn-danger:hover { background-color: #c82333; transform: scale(1.05); }
+
+.btn-secondary { background-color: var(--color-secondary); color: white; }
+.btn-secondary:hover { background-color: var(--color-secondary-hover); }
+
+/* Novo Botão de Informação/Notificação */
+.btn-info {
+    background-color: var(--color-info);
+    color: white;
 }
-.btn-primary:hover {
-    background-color: var(--color-primary-hover);
+.btn-info:hover {
+    background-color: #0056b3;
     transform: translateY(-2px);
 }
 
-.btn-secondary {
-    background-color: var(--color-secondary);
-    color: white;
-}
-.btn-secondary:hover {
-    background-color: var(--color-secondary-hover);
-}
-
-/* Botão de Tema */
 .btn-theme-toggle {
     background: none;
     border: 1px solid var(--color-border);
@@ -210,15 +215,13 @@ textarea {
     background-color: var(--color-border);
 }
 
-/* 7. Lista de Tarefas (Dashboard) */
+
+/* 7. Lista de Tarefas (Dashboard) e Controles */
 .list-controls {
-    display: flex;
+    display: grid;
+    grid-template-columns: 1fr 1fr auto; /* Input, Select, Button */
     gap: 1rem;
     margin-bottom: 1.5rem;
-}
-
-#search-input, #filter-type {
-    flex-grow: 1;
 }
 
 .task-list {
@@ -249,24 +252,13 @@ textarea {
 .type-Prova { border-left-color: var(--color-prova); }
 .type-Trabalho { border-left-color: var(--color-trabalho); }
 .type-Avaliacao { border-left-color: var(--color-avaliacao); }
-.type-Prazo { border-left-color: var(--color-prazo); }
+.type-PrazoFinal { border-left-color: var(--color-prazo); }
 
 .task-info {
     flex-grow: 1;
-    min-width: 0; /* Ajuda no overflow de texto */
+    min-width: 0;
 }
 
-.task-info h3 {
-    margin: 0 0 0.2rem 0;
-    font-size: 1.1rem;
-}
-
-.task-info p {
-    font-size: 0.9rem;
-    color: var(--color-text-secondary);
-}
-
-/* Contador de Prazos */
 .task-deadline {
     min-width: 150px;
     text-align: right;
@@ -307,15 +299,34 @@ textarea {
     border-radius: var(--color-radius);
 }
 
-/* 8. Responsividade */
+/* Estilos Adicionais para o Gráfico Canvas */
+.chart-container {
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--color-radius);
+    text-align: center;
+}
 
-/* Layout Tablet (768px e abaixo) */
+.chart-container h3 {
+    margin-bottom: 1rem;
+    font-size: 1.2rem;
+    color: var(--color-text);
+}
+
+#task-chart {
+    background-color: var(--color-background);
+    border-radius: var(--color-radius);
+    max-width: 100%;
+}
+
+
+/* 8. Responsividade */
 @media (max-width: 900px) {
     .container {
         grid-template-columns: 1fr; /* Coluna única */
     }
 
-    /* Move a lista (dashboard) para cima no mobile */
     .form-section {
         order: 2; 
     }
@@ -324,7 +335,12 @@ textarea {
     }
 }
 
-/* Layout Mobile (480px e abaixo) */
+@media (max-width: 650px) {
+    .list-controls {
+        grid-template-columns: 1fr; /* Coluna única em mobile */
+    }
+}
+
 @media (max-width: 550px) {
     .main-header {
         flex-direction: column;
@@ -334,12 +350,7 @@ textarea {
     .container {
         padding: 0 1rem;
     }
-    
-    .list-controls {
-        flex-direction: column;
-    }
 
-    /* O item da lista se torna vertical em telas muito pequenas */
     .task-item {
         flex-direction: column;
         align-items: flex-start;
